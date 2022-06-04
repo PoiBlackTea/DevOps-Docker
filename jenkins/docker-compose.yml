@@ -2,7 +2,7 @@ version: '3.7'
 services:
   cadvisor:
     image: gcr.io/cadvisor/cadvisor:latest
-    container_name: cadvisor
+    container_name: jenkins_cadvisor
     ports:
       - 8000:8080
     volumes:
@@ -10,26 +10,37 @@ services:
       - /var/run:/var/run:rw
       - /sys:/sys:ro
       - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 500M
     networks:
-      monitor:
+      jenkins:
   
 
   jenkins:
-    build: jenkins/jenkins:lts-jdk11
+    build: .
     privileged: true
     user: root
     ports:
       - 8080:8080
       - 50000:50000
-    container_name: jenkins
+    container_name: jenkins_master
     volumes:
       - jenkins_data:/var/jenkins_home
       - /var/run/docker.sock:/var/run/docker.sock
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 500M
     networks:
-      monitor:
+      jenkins:
 
 volumes:
   jenkins_data:
 
 networks:
-  monitor:
+  jenkins:

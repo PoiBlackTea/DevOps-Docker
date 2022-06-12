@@ -1,0 +1,8 @@
+server.name: 
+server.host: ""
+elasticsearch.hosts: [ "http://es:9200" ]
+monitoring.ui.container.elasticsearch.enabled: true
+elasticsearch.username: "elastic"
+elasticsearch.password: 
+xpack.security.enabled: true
+xpack.encryptedSavedObjects.encryptionKey: ""

@@ -1,0 +1,9 @@
+version: '3.3'
+services:
+  elasticsearch:
+    build:
+      context: ./
+      dockerfile: Dockerfile-elasticscearch
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${KIBANA_VERSION:-7.16.1}

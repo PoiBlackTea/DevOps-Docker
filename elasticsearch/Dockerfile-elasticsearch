@@ -1,0 +1,10 @@
+ARG ELASTIC_VERSION
+FROM docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION}
+
+EXPOSE 9200 9300
+
+USER elasticsearch
+
+ARG ELASTIC_VERSION
+# install analysis-ik
+RUN elasticsearch-plugin install -b https://github.com/medcl/elasticsearch-analysis-ik/releases/download/v${ELASTIC_VERSION}/elasticsearch-analysis-ik-${ELASTIC_VERSION}.zip

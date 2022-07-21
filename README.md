@@ -17,3 +17,8 @@ sonarqube 使用前須調整以下幾個項目
 1. sysctl -w vm.max_map_count=262144
 2. sysctl -w fs.file-max=65536
 
+## Elaticsearch + Kibana
+啟動指令
+```
+docker-compose --env-file ./.env  --compatibility -f docker-compose.yml -f docker-compose-prod.yml  up -d
+```

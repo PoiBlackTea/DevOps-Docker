@@ -1,0 +1,61 @@
+x-depends_on-healthy: &depends_on-healthy
+  condition: service_healthy
+x-restart-policy: &restart_policy
+  restart: unless-stopped
+x-healthcheck-defaults: &healthcheck_defaults
+  interval: "$HEALTHCHECK_INTERVAL"
+  timeout: "$HEALTHCHECK_TIMEOUT"
+  retries: $HEALTHCHECK_RETRIES
+  start_period: 10s
+
+version: '3.7'
+services: 
+  sonarqube:
+    <<: *restart_policy
+    image: sonarqube:community
+    init: true
+    depends_on:
+      sonarqube_db:
+        <<: *depends_on-healthy
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://sonarqube_db:5432/sonar
+      SONAR_JDBC_USERNAME: $JDBC_USERNAME
+      SONAR_JDBC_PASSWORD: $JDBC_PASSWORD
+    volumes:
+      - sonarqube_data:/opt/sonarqube/data
+      - sonarqube_conf:/opt/sonarqube/conf
+      - sonarqube_extensions:/opt/sonarqube/extensions
+      - sonarqube_logs:/opt/sonarqube/logs
+      - sonarqube_bundled-plugins:/opt/sonarqube/lib/bundled-plugins
+    ports:
+      - "9000:9000"
+    networks:
+      - sonarnet
+
+  sonarqube_db:
+    <<: *restart_policy
+    image: postgres:14
+    init: true
+    environment:
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: sonar
+    volumes:
+      - postgresql:/var/lib/postgresql
+      - postgresql_data:/var/lib/postgresql/data
+    healthcheck:
+      <<: *healthcheck_defaults
+      test: ["CMD-SHELL", "pg_isready -U ${JDBC_USERNAME:-postgres}"]
+    networks:
+      - sonarnet
+
+volumes:
+  sonarqube_data:
+  sonarqube_conf:
+  sonarqube_bundled-plugins:
+  sonarqube_extensions:
+  sonarqube_logs:
+  postgresql:
+  postgresql_data:
+
+networks:
+  sonarnet:

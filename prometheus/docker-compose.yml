@@ -1,0 +1,157 @@
+x-restart-policy: &restart_policy
+  restart: unless-stopped
+
+version: '3.8'
+
+services:
+  prometheus:
+    <<: *restart_policy
+    image: prom/prometheus:v2.36.2
+    init: true
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./myrule.yml:/etc/prometheus/rules/myrule.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.external-url=/prometheus'
+    ports:
+      - '9090:9090'
+    depends_on:
+      - cadvisor
+    links:
+      - cadvisor:cadvisor
+    container_name: promtheus
+    networks:
+      - monitor
+    labels:
+      - traefik.http.routers.prometheus.rule=Host(`localhost`) && PathPrefix(`/prometheus`)
+      - traefik.http.routers.prometheus.middlewares=auth
+      - traefik.http.middlewares.auth.basicauth.users=user:$$apr1$$q.0VEusm$$/wLgBSx5ppUAGHZHf9uHo.
+    
+
+  node-exporter:
+    <<: *restart_policy
+    image: prom/node-exporter:latest
+    init: true
+    ports:
+      - '9100:9100'
+    volumes:
+      # Remember to use read-only bind mounts.
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - "--web.listen-address=:9100"
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs" # Necessary for collecting host filesystem metrics.
+      - "--collector.filesystem.ignored-mount-points='^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)'"
+    networks:
+      - monitor
+    labels:
+      - traefik.http.routers.node-exporter.rule=Host(`localhost`) && PathPrefix(`/node`)
+
+
+  blackbox-exporter:
+    <<: *restart_policy
+    image: prom/blackbox-exporter:latest
+    init: true
+    volumes:
+      - ./blackbox/blackbox.yml:/etc/prometheus/blackbox.yml
+    ports:
+      - '9115:9115'
+    command:
+      - '--config.file=/etc/prometheus/blackbox.yml'
+    container_name: blackbox
+    networks:
+      - monitor
+    labels:
+      - traefik.http.routers.blackbox.rule=Host(`localhost`)  && PathPrefix(`/blackbox`)
+
+
+  altermanager:
+    <<: *restart_policy
+    image: prom/alertmanager:latest
+    init: true
+    ports: 
+      - 9093:9093
+    volumes:
+      - ./alertmanager:/etc/alertmanager/
+    command:
+      - '--config.file=/etc/alertmanager/config.yml'
+      - '--storage.path=/alertmanager'
+    container_name: altermanager
+    depends_on:
+      - prometheus
+    networks:
+      - monitor
+    
+  cadvisor:
+    <<: *restart_policy
+    image: gcr.io/cadvisor/cadvisor:latest
+    privileged: true
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+    container_name: cadvisor
+    command:
+      - '--url_base_prefix=/cadvisor'
+    ports:
+      - '8090:8080'
+    environment:
+      - CADVISOR_HEALTHCHECK_URL=http://localhost:8080/cadvisor/healthz 
+    networks:
+      - monitor
+    labels:
+      - traefik.http.routers.cadvisor.rule=Host(`localhost`)  && PathPrefix(`/cadvisor`)
+
+
+  grafana:
+    <<: *restart_policy
+    image: grafana/grafana:7.5.2
+    init: true
+    volumes:
+      - grafana_data:/var/lib/grafana
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GF_PASS}
+      GF_SERVER_ROOT_URL: '%(protocol)s://%(domain)s/grafana'
+      GF_SERVER_SERVE_FROM_SUB_PATH: 'true'
+    depends_on:
+      - prometheus
+    ports:
+      - '3000:3000'
+    container_name: grafana
+    networks:
+      - monitor
+    labels:
+      - traefik.http.routers.grafana.rule=Host(`localhost`)  && PathPrefix(`/grafana`)
+
+
+  reverse-proxy:
+    # The official v2 Traefik docker image
+    image: traefik:v2.7
+    # Enables the web UI and tells Traefik to listen to docker
+    command: --api.insecure=true --providers.docker
+    ports:
+      # The HTTP port
+      - "80:80"
+      # The Web UI (enabled by --api.insecure=true)
+      - "8080:8080"
+    volumes:
+      # So that Traefik can listen to the Docker events
+      - /var/run/docker.sock:/var/run/docker.sock
+      - traefik_log:/logs
+    networks:
+      - monitor
+
+volumes:
+  grafana_data: {}
+  prometheus_data: {}
+  traefik_log: {}
+
+networks:
+  monitor:

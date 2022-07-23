@@ -100,6 +100,7 @@ services:
     container_name: cadvisor
     command:
       - '--url_base_prefix=/cadvisor'
+      - '--docker_only' # don't collect subcontainer https://github.com/google/cadvisor/issues/2129
     ports:
       - '8090:8080'
     environment:

@@ -30,7 +30,7 @@ scrape_configs:
   #     password: ''
 
   - job_name: 'blackbox'
-    metrics_path: /probe
+    metrics_path: 'blackbox/probe'
     scrape_interval: 30s
     params:
       module: [http_2xx]  # Look for a HTTP 200 response.

@@ -16,8 +16,6 @@ services:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.retention.time=30d'
       - '--web.external-url=/prometheus'
-    ports:
-      - '9090:9090'
     depends_on:
       - cadvisor
     links:
@@ -25,6 +23,7 @@ services:
     container_name: promtheus
     networks:
       - monitor
+      - celery-demo_default
     labels:
       - traefik.http.routers.prometheus.rule=Host(`localhost`) && PathPrefix(`/prometheus`)
       - traefik.http.routers.prometheus.middlewares=auth
@@ -50,9 +49,7 @@ services:
       - "--collector.filesystem.ignored-mount-points='^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)'"
     networks:
       - monitor
-    labels:
-      - traefik.http.routers.node-exporter.rule=Host(`localhost`) && PathPrefix(`/node`)
-
+    
 
   blackbox-exporter:
     <<: *restart_policy
@@ -60,10 +57,9 @@ services:
     init: true
     volumes:
       - ./blackbox/blackbox.yml:/etc/prometheus/blackbox.yml
-    ports:
-      - '9115:9115'
     command:
       - '--config.file=/etc/prometheus/blackbox.yml'
+      - '--web.external-url=/blackbox'
     container_name: blackbox
     networks:
       - monitor
@@ -75,18 +71,21 @@ services:
     <<: *restart_policy
     image: prom/alertmanager:latest
     init: true
-    ports: 
-      - 9093:9093
     volumes:
       - ./alertmanager:/etc/alertmanager/
     command:
       - '--config.file=/etc/alertmanager/config.yml'
       - '--storage.path=/alertmanager'
+      - '--web.route-prefix=/alertmanager/'
     container_name: altermanager
     depends_on:
       - prometheus
     networks:
       - monitor
+    labels:
+      - traefik.http.routers.alertmanager.rule=Host(`localhost`) && PathPrefix(`/alertmanager`)
+      - traefik.http.routers.alertmanager.middlewares=auth
+      - traefik.http.middlewares.auth.basicauth.users=user:$$apr1$$q.0VEusm$$/wLgBSx5ppUAGHZHf9uHo.
     
   cadvisor:
     <<: *restart_policy
@@ -100,8 +99,7 @@ services:
     container_name: cadvisor
     command:
       - '--url_base_prefix=/cadvisor'
-    ports:
-      - '8090:8080'
+      - '--docker_only' # don't collect subcontainer https://github.com/google/cadvisor/issues/2129
     environment:
       - CADVISOR_HEALTHCHECK_URL=http://localhost:8080/cadvisor/healthz 
     networks:
@@ -122,8 +120,6 @@ services:
       GF_SERVER_SERVE_FROM_SUB_PATH: 'true'
     depends_on:
       - prometheus
-    ports:
-      - '3000:3000'
     container_name: grafana
     networks:
       - monitor
@@ -138,13 +134,31 @@ services:
     command: --api.insecure=true --providers.docker
     ports:
       # The HTTP port
-      - "80:80"
+      - '80:80'
       # The Web UI (enabled by --api.insecure=true)
-      - "8080:8080"
+      - '8080:8080'
     volumes:
       # So that Traefik can listen to the Docker events
       - /var/run/docker.sock:/var/run/docker.sock
       - traefik_log:/logs
+    networks:
+      - monitor
+      - celery-demo_default
+
+  process-exporter:
+    <<: *restart_policy
+    image: ncabatoff/process-exporter
+    privileged: true
+    volumes:
+      - /proc:/host/proc
+      - ./process:/config
+    ports:
+      - '9256:9256'
+    command:
+      - '-procfs'
+      - '/host/proc'
+      - '-config.path'
+      - '/config/config.yml'
     networks:
       - monitor
 
@@ -155,3 +169,5 @@ volumes:
 
 networks:
   monitor:
+  celery-demo_default:
+    external: true

@@ -12,7 +12,7 @@ route:
 receivers:
 - name: 'slack-notifications'
   slack_configs:
-  - channel: ''
+  - channel: 'demo-devops'
     send_resolved: true
     icon_url: https://avatars3.githubusercontent.com/u/3380462
     title: |-

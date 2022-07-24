@@ -1,0 +1,7 @@
+process_names:
+  - name: "{{.ExeFull}}:{{.Matches.Cfgfile}}"
+    exe:
+    - '/usr/local/bin/python'
+    cmdline:
+    - '/usr/local/bin/celery -A .* worker -l info'
+

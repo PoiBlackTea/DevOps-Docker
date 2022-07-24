@@ -21,13 +21,13 @@ scrape_configs:
           group: 'Monitor_Server'
 
   # https://flower.readthedocs.io/en/latest/prometheus-integration.html#configure-and-start-prometheus      
-  # - job_name: flower
-  #   scrape_interval: 30s
-  #   static_configs:
-  #   - targets: ['']
-  #   basic_auth:
-  #     username: ''
-  #     password: ''
+  - job_name: flower
+    scrape_interval: 30s
+    static_configs:
+    - targets: ['172.20.0.5:5555']
+    # basic_auth:
+    #   username: ''
+    #   password: ''
 
   - job_name: 'blackbox'
     metrics_path: 'blackbox/probe'
@@ -64,6 +64,14 @@ scrape_configs:
   #   scrape_interval: 1m
   #   static_configs:
   #   - targets: ['']
+
+  - job_name: process-exporter
+    scrape_interval: 10s
+    static_configs:
+    - targets: 
+      - 'process-exporter:9256'
+      labels:
+        group: 'Monitor_Server'
       
 alerting:
   alertmanagers:

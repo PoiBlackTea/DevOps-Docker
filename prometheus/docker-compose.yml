@@ -23,6 +23,7 @@ services:
     container_name: promtheus
     networks:
       - monitor
+      - celery-demo_default
     labels:
       - traefik.http.routers.prometheus.rule=Host(`localhost`) && PathPrefix(`/prometheus`)
       - traefik.http.routers.prometheus.middlewares=auth
@@ -142,6 +143,24 @@ services:
       - traefik_log:/logs
     networks:
       - monitor
+      - celery-demo_default
+
+  process-exporter:
+    <<: *restart_policy
+    image: ncabatoff/process-exporter
+    privileged: true
+    volumes:
+      - /proc:/host/proc
+      - ./process:/config
+    ports:
+      - '9256:9256'
+    command:
+      - '-procfs'
+      - '/host/proc'
+      - '-config.path'
+      - '/config/config.yml'
+    networks:
+      - monitor
 
 volumes:
   grafana_data: {}
@@ -150,3 +169,5 @@ volumes:
 
 networks:
   monitor:
+  celery-demo_default:
+    external: true
